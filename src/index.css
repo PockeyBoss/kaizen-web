@@ -1,0 +1,42 @@
+/* stylelint-disable at-rule-no-unknown */
+/* tailwindcss directives (processed by PostCSS/Tailwind) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* stylelint-enable at-rule-no-unknown */
+
+/* Variables de marca */
+:root {
+  --kaizen-orange: #f36c21;
+  --kaizen-orange2: #ff8a42;
+}
+
+/* Base */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: #fff;
+}
+
+/* Hero suave (fallback sin imágenes) */
+.hero-bg {
+  background: radial-gradient(
+      1200px 600px at 50% -10%,
+      rgba(243, 108, 33, 0.12),
+      transparent 60%
+    ),
+    linear-gradient(#ffffff, #f8fafc);
+}
+
+/* Oscuro */
+.dark .hero-bg {
+  background: radial-gradient(
+      1200px 600px at 50% -10%,
+      rgba(243, 108, 33, 0.12),
+      transparent 60%
+    ),
+    linear-gradient(#0a0a0a, #111827);
+}
