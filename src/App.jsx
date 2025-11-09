@@ -229,7 +229,7 @@ export default function App() {
 
   // Imagen de hero (día / noche)
   const heroImgDay =
-    'https://plus.unsplash.com/premium_photo-1669916850015-eda6093d41f4?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDYyfHxlbXByZXNhJTIwc2lzdGVtYXMlMjBjbG91ZCUyMGluZnJhZXN0cnVjdHVyYXxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&q=60&w=1600';
+    'https://media.istockphoto.com/id/1566680995/es/foto/tecnolog%C3%ADa-futura-conexi%C3%B3n-de-red-de-datos-digitales-ciberseguridad-de-computaci%C3%B3n-en-la-nube.webp?a=1&b=1&s=612x612&w=0&k=20&c=40JpCptRYBflf3SZ6PRn9exkhFCE4ZNSlzF0XRLcw2U=';
   // misma imagen con tratamiento oscuro para "noche"
   const heroImgNight = heroImgDay;
 
