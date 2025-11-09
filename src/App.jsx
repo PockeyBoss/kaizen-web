@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Sun,
   Moon,
@@ -19,17 +19,35 @@ function ParticlesCanvas({ darkMode }) {
   const mouse = useRef({ x: -9999, y: -9999, active: false });
   const particlesRef = useRef([]);
 
-  const color = darkMode ? { r: 243, g: 108, b: 33 } : { r: 255, g: 102, b: 0 };
-  const linkOpacity = 0.28;
-  const maxDist = 150;
-  const repulseDist = 100;
-
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
+
+    // Preferencias del usuario y tamaño de pantalla
+    const prefersReduce = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    // Si el usuario prefiere menos animación, no renderizamos partículas
+    if (prefersReduce) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
     let width = 0;
     let height = 0;
+
+    const color = darkMode
+      ? { r: 243, g: 108, b: 33 }
+      : { r: 255, g: 102, b: 0 };
+
+    // En mobile bajamos distancias/links para alivianar GPU
+    const linkOpacity = isMobile ? 0 : 0.28;
+    const maxDist = isMobile ? 0 : 150;
+    const repulseDist = isMobile ? 70 : 100;
 
     const resize = () => {
       const { clientWidth, clientHeight } = canvas;
@@ -39,8 +57,11 @@ function ParticlesCanvas({ darkMode }) {
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const count = Math.max(40, Math.floor((width * height) / 18000));
+      // Densidad menor en mobile
+      const density = isMobile ? 52000 : 18000;
+      const count = Math.max(24, Math.floor((width * height) / density));
       const arr = particlesRef.current;
+
       if (arr.length === 0) {
         for (let i = 0; i < count; i++) {
           arr.push({
@@ -77,12 +98,21 @@ function ParticlesCanvas({ darkMode }) {
       mouse.current.y = -9999;
     };
 
-    const step = () => {
+    let lastTs = 0;
+    const step = (ts) => {
+      // Throttle suave en mobile (≈35fps)
+      if (isMobile && ts - lastTs < 28) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      lastTs = ts;
+
       ctx.clearRect(0, 0, width, height);
       const arr = particlesRef.current;
+
       for (let i = 0; i < arr.length; i++) {
         const p = arr[i];
-        if (mouse.current.active) {
+        if (mouse.current.active && !isMobile) {
           const dx = p.x - mouse.current.x;
           const dy = p.y - mouse.current.y;
           const dist2 = dx * dx + dy * dy;
@@ -95,33 +125,38 @@ function ParticlesCanvas({ darkMode }) {
         }
         p.x += p.vx;
         p.y += p.vy;
-        p.vx *= 0.98;
-        p.vy *= 0.98;
+        p.vx *= 0.985;
+        p.vy *= 0.985;
         if (p.x <= 0 || p.x >= width) p.vx *= -1;
         if (p.y <= 0 || p.y >= height) p.vy *= -1;
+
         ctx.beginPath();
         ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},0.85)`;
         ctx.fill();
       }
-      ctx.lineWidth = 1;
-      for (let i = 0; i < arr.length; i++) {
-        for (let j = i + 1; j < arr.length; j++) {
-          const a = arr[i];
-          const b = arr[j];
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-          const dist2 = dx * dx + dy * dy;
-          if (dist2 < maxDist * maxDist) {
-            const alpha = linkOpacity * (1 - Math.sqrt(dist2) / maxDist);
-            ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
+
+      if (maxDist > 0) {
+        ctx.lineWidth = 1;
+        for (let i = 0; i < arr.length; i++) {
+          for (let j = i + 1; j < arr.length; j++) {
+            const a = arr[i];
+            const b = arr[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const dist2 = dx * dx + dy * dy;
+            if (dist2 < maxDist * maxDist) {
+              const alpha = linkOpacity * (1 - Math.sqrt(dist2) / maxDist);
+              ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
           }
         }
       }
+
       rafRef.current = requestAnimationFrame(step);
     };
 
@@ -139,7 +174,12 @@ function ParticlesCanvas({ darkMode }) {
     };
   }, [darkMode]);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 -z-10" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 -z-10 will-change-transform"
+    />
+  );
 }
 
 /* ------------------------------- Data ------------------------------- */
@@ -192,6 +232,7 @@ export default function App() {
   // Claro por defecto
   const [darkMode, setDarkMode] = useState(false);
   const toggleMode = () => setDarkMode((v) => !v);
+  const prefersReducedMotion = useReducedMotion();
 
   const theme = darkMode
     ? {
@@ -211,71 +252,75 @@ export default function App() {
     <div
       className={`relative min-h-screen font-sans overflow-x-hidden transition-colors duration-700 ${theme.bg}`}
     >
-      {/* Capa de partículas + blobs animados */}
+      {/* Capa de partículas + blobs animados (blobs atenuados en mobile) */}
       <ParticlesCanvas darkMode={darkMode} />
       <motion.div
         className="pointer-events-none fixed inset-0 -z-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
       >
-        {/* blobs naranjas suaves */}
         <motion.div
-          className="absolute -top-24 -left-24 w-[36rem] h-[36rem] rounded-full blur-3xl"
+          className="absolute -top-24 -left-24 w-[26rem] sm:w-[36rem] h-[26rem] sm:h-[36rem] rounded-full blur-3xl"
           style={{
             background:
-              'radial-gradient(closest-side, rgba(255,130,50,0.35), transparent)',
+              'radial-gradient(closest-side, rgba(255,130,50,0.28), transparent)',
           }}
-          animate={{ x: [0, 20, -10, 0], y: [0, -10, 10, 0] }}
+          animate={
+            prefersReducedMotion
+              ? {}
+              : { x: [0, 20, -10, 0], y: [0, -10, 10, 0] }
+          }
           transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute -bottom-24 -right-24 w-[32rem] h-[32rem] rounded-full blur-3xl"
+          className="absolute -bottom-24 -right-24 w-[24rem] sm:w-[32rem] h-[24rem] sm:h-[32rem] rounded-full blur-3xl"
           style={{
             background:
-              'radial-gradient(closest-side, rgba(255,100,20,0.25), transparent)',
+              'radial-gradient(closest-side, rgba(255,100,20,0.2), transparent)',
           }}
-          animate={{ x: [0, -20, 10, 0], y: [0, 15, -10, 0] }}
+          animate={
+            prefersReducedMotion
+              ? {}
+              : { x: [0, -20, 10, 0], y: [0, 15, -10, 0] }
+          }
           transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
         />
       </motion.div>
 
-      {/* Header */}
+      {/* Header (blur sólo en desktop) */}
       <motion.header
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        className={`sticky top-0 z-50 backdrop-blur border-b border-neutral-300/30 shadow-md transition ${
+        transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
+        className={`sticky top-0 z-50 border-b border-neutral-300/30 shadow-md transition ${
           darkMode ? 'bg-neutral-950/90' : 'bg-white/90'
-        }`}
+        } md:backdrop-blur`}
       >
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <motion.img
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <img
             src="/img/logo-icon.png"
             alt="Kaizen logo"
-            className="w-16 h-16 object-contain"
-            initial={{ rotate: -15, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ duration: 0.8 }}
+            className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
+            loading="eager"
+            decoding="async"
           />
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
             {['Nosotros', 'Servicios', 'Cloud', 'Contactanos'].map(
               (link, i) => (
-                <motion.a
+                <a
                   key={link}
                   href={`#${link.toLowerCase()}`}
                   className="hover:text-orange-500 transition"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 + 0.5 }}
                 >
                   {link}
-                </motion.a>
+                </a>
               )
             )}
           </nav>
           <button
             onClick={toggleMode}
-            className="ml-6 p-3 rounded-full border border-orange-500 hover:bg-orange-500 hover:text-white transition"
+            className="ml-4 p-3 rounded-full border border-orange-500 hover:bg-orange-500 hover:text-white transition"
             aria-label="Cambiar tema"
             title="Cambiar tema"
           >
@@ -286,7 +331,7 @@ export default function App() {
 
       {/* Hero */}
       <section
-        className={`relative h-[90vh] md:h-[96vh] flex items-center justify-center overflow-hidden ${theme.sectionBg}`}
+        className={`relative min-h-[82vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden ${theme.sectionBg}`}
       >
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -299,20 +344,23 @@ export default function App() {
           className={`absolute inset-0 bg-gradient-to-b ${theme.gradient}`}
           style={{ opacity: 0.85 }}
         />
-        <div className="relative z-10 text-center px-6">
+        <div className="relative z-10 text-center px-4 sm:px-6">
           <motion.h1
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-            className={`text-5xl md:text-6xl font-extrabold leading-tight ${theme.text}`}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.8 }}
+            className={`font-extrabold leading-tight ${theme.text} text-4xl sm:text-5xl md:text-6xl`}
           >
             AUTOMATIZACIÓN Y SOPORTE A MEDIDA | SOFTWARE TANGO GESTIÓN
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 1 }}
-            className="mt-6 text-lg max-w-2xl mx-auto text-gray-700 dark:text-gray-300"
+            transition={{
+              delay: 0.2,
+              duration: prefersReducedMotion ? 0 : 0.8,
+            }}
+            className="mt-5 sm:mt-6 text-base sm:text-lg max-w-2xl mx-auto text-gray-700 dark:text-gray-300"
           >
             Tecnología que potencia tu empresa. Implementamos, optimizamos,
             capacitamos y damos soporte a soluciones tecnológicas adaptadas a tu
@@ -321,38 +369,44 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="mt-10 flex justify-center gap-6"
+            transition={{ delay: 0.6 }}
+            className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center gap-4 sm:gap-6"
           >
             <a
               href="#servicios"
-              className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-3 rounded-full font-medium transition"
+              className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-3 rounded-full font-medium transition w-full sm:w-auto"
             >
               Ver Servicios
             </a>
             <a
               href="#contactanos"
-              className="border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white px-8 py-3 rounded-full font-medium transition"
+              className="border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white px-8 py-3 rounded-full font-medium transition w-full sm:w-auto"
             >
               Contacto
             </a>
           </motion.div>
         </div>
-        <motion.img
+        <img
           src="https://www.axoft.com/img/logos/gestion.svg"
           alt="Tango Gestión"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 0.3, y: [0, -10, 0] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          className="absolute bottom-10 right-10 w-40 opacity-60"
+          className="absolute bottom-6 right-6 w-28 sm:w-40 opacity-40 pointer-events-none"
+          loading="lazy"
+          decoding="async"
         />
       </section>
 
       {/* Nosotros */}
-      <section id="nosotros" className="py-24 text-center px-6">
+      <section
+        id="nosotros"
+        className="py-16 sm:py-20 text-center px-4 sm:px-6"
+      >
         <div className="max-w-5xl mx-auto">
-          <h2 className={`text-4xl font-bold mb-8 ${theme.text}`}>Nosotros</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed">
+          <h2
+            className={`text-3xl sm:text-4xl font-bold mb-6 sm:mb-8 ${theme.text}`}
+          >
+            Nosotros
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg leading-relaxed">
             Optimizamos tu empresa con tecnología, mejorando la eficiencia
             operativa. Acompañamos de forma cercana con soluciones a medida y
             foco en resultados.
@@ -363,26 +417,33 @@ export default function App() {
       {/* Por qué elegirnos */}
       <section
         id="porqueelegirnos"
-        className="py-24 text-center px-6 bg-gradient-to-b from-orange-50/60 to-transparent dark:from-neutral-900/50"
+        className="py-16 sm:py-20 text-center px-4 sm:px-6 bg-gradient-to-b from-orange-50/60 to-transparent dark:from-neutral-900/50"
       >
         <div className="max-w-6xl mx-auto">
-          <h2 className={`text-4xl font-bold mb-12 ${theme.text}`}>
+          <h2
+            className={`text-3xl sm:text-4xl font-bold mb-8 sm:mb-12 ${theme.text}`}
+          >
             ¿Por qué elegirnos?
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10 text-left">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 text-left">
             {WHY_US.map((item, i) => (
               <motion.div
                 key={item.t}
-                initial={{ opacity: 0, y: 60 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
-                transition={{ delay: i * 0.15, duration: 0.7 }}
-                className="p-6 rounded-2xl shadow-lg border border-orange-500/20 bg-white/80 dark:bg-neutral-900/70 hover:-translate-y-2 transition-transform"
+                transition={{
+                  delay: i * 0.12,
+                  duration: prefersReducedMotion ? 0 : 0.6,
+                }}
+                className="p-6 rounded-2xl shadow-lg border border-orange-500/20 bg-white/80 dark:bg-neutral-900/70 hover:-translate-y-1.5 transition-transform"
               >
-                <h3 className="text-2xl font-semibold text-orange-600 mb-3">
+                <h3 className="text-xl sm:text-2xl font-semibold text-orange-600 mb-2.5">
                   {item.t}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400">{item.d}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                  {item.d}
+                </p>
               </motion.div>
             ))}
           </div>
@@ -390,35 +451,43 @@ export default function App() {
       </section>
 
       {/* Servicios */}
-      <section id="servicios" className="py-24 px-6 text-center">
+      <section
+        id="servicios"
+        className="py-16 sm:py-20 px-4 sm:px-6 text-center"
+      >
         <motion.h2
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className={`text-4xl font-bold mb-12 ${theme.text}`}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.7 }}
+          className={`text-3xl sm:text-4xl font-bold mb-8 sm:mb-12 ${theme.text}`}
         >
           Nuestros Servicios
         </motion.h2>
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-10">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10">
           {SERVICES.map((s, i) => {
             const Icon = s.icon;
             return (
               <motion.div
                 key={s.t}
-                initial={{ opacity: 0, y: 60 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
-                transition={{ delay: i * 0.12, duration: 0.7 }}
-                className="p-6 rounded-2xl shadow-lg border border-orange-500/20 bg-white/80 dark:bg-neutral-900/70 hover:-translate-y-3 transition-transform"
+                transition={{
+                  delay: i * 0.12,
+                  duration: prefersReducedMotion ? 0 : 0.6,
+                }}
+                className="p-6 rounded-2xl shadow-lg border border-orange-500/20 bg-white/80 dark:bg-neutral-900/70 hover:-translate-y-2 transition-transform"
               >
                 <div className="mx-auto mb-4 w-12 h-12 rounded-xl flex items-center justify-center bg-orange-100 text-orange-600 dark:bg-orange-600/20">
                   <Icon />
                 </div>
-                <h3 className="text-2xl font-semibold text-orange-600 mb-2">
+                <h3 className="text-xl sm:text-2xl font-semibold text-orange-600 mb-2">
                   {s.t}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400">{s.d}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                  {s.d}
+                </p>
               </motion.div>
             );
           })}
@@ -426,36 +495,39 @@ export default function App() {
       </section>
 
       {/* Cloud */}
-      <section id="cloud" className="py-24 text-center">
+      <section id="cloud" className="py-16 sm:py-20 text-center">
         <motion.h2
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className={`text-4xl font-bold mb-12 ${theme.text}`}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.7 }}
+          className={`text-3xl sm:text-4xl font-bold mb-8 sm:mb-12 ${theme.text}`}
         >
           Planes de Infraestructura Cloud
         </motion.h2>
 
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 px-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 px-4 sm:px-6">
           {CLOUD_PLANS.map((p, i) => (
             <motion.div
               key={p.name}
-              initial={{ opacity: 0, y: 80 }}
+              initial={{ opacity: 0, y: 50 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
-              transition={{ delay: i * 0.15, duration: 0.8 }}
-              className="relative p-8 rounded-3xl border border-orange-500/40 shadow-lg bg-gradient-to-b from-orange-600/10 to-transparent hover:scale-[1.02] transition-transform backdrop-blur-lg"
+              transition={{
+                delay: i * 0.15,
+                duration: prefersReducedMotion ? 0 : 0.7,
+              }}
+              className="relative p-7 sm:p-8 rounded-3xl border border-orange-500/40 shadow-lg bg-gradient-to-b from-orange-600/10 to-transparent hover:scale-[1.02] transition-transform backdrop-blur-lg"
             >
               <div className="absolute -top-6 left-6">
                 <span className="inline-flex items-center gap-2 bg-orange-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
                   <CloudIcon size={14} /> Optimizado
                 </span>
               </div>
-              <h3 className="text-2xl font-semibold text-orange-500 mb-4">
+              <h3 className="text-xl sm:text-2xl font-semibold text-orange-500 mb-3">
                 {p.name}
               </h3>
-              <ul className="text-left text-gray-700 dark:text-gray-300 space-y-2 mb-6">
+              <ul className="text-left text-gray-700 dark:text-gray-300 space-y-2 mb-6 text-sm sm:text-base">
                 <li>
                   <strong>vCPUs:</strong> {p.cpu}
                 </li>
@@ -483,52 +555,57 @@ export default function App() {
       </section>
 
       {/* Contacto */}
-      <section id="contactanos" className="relative py-32 text-center">
+      <section id="contactanos" className="relative py-20 sm:py-24 text-center">
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="max-w-4xl mx-auto px-6"
+          transition={{ duration: prefersReducedMotion ? 0 : 0.7 }}
+          className="max-w-4xl mx-auto px-4 sm:px-6"
         >
-          <h2 className={`text-4xl font-bold mb-6 ${theme.text}`}>
+          <h2 className={`text-3xl sm:text-4xl font-bold mb-6 ${theme.text}`}>
             Contactanos
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-10 text-lg">
+          <p className="text-gray-600 dark:text-gray-400 mb-8 sm:mb-10 text-base sm:text-lg">
             Llevá tu empresa al siguiente nivel. Descubrí cómo optimizar tu
             gestión y mejorar tu eficiencia con nuestras soluciones.
           </p>
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <form className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10">
             <input
               type="text"
               placeholder="Nombre"
+              autoComplete="name"
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <input
               type="email"
               placeholder="Email"
+              autoComplete="email"
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <input
               type="text"
               placeholder="Empresa"
+              autoComplete="organization"
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <input
               type="tel"
               placeholder="Teléfono"
+              inputMode="tel"
+              autoComplete="tel"
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <textarea
               placeholder="Mensaje"
               rows={4}
-              className="col-span-2 p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="md:col-span-2 p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             ></textarea>
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: prefersReducedMotion ? 1 : 1.02 }}
+              whileTap={{ scale: prefersReducedMotion ? 1 : 0.98 }}
               type="submit"
-              className="col-span-2 bg-orange-600 hover:bg-orange-500 text-white font-medium py-3 rounded-lg transition"
+              className="md:col-span-2 bg-orange-600 hover:bg-orange-500 text-white font-medium py-3 rounded-lg transition"
             >
               Enviar mensaje
             </motion.button>
@@ -540,8 +617,8 @@ export default function App() {
       <motion.footer
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-        className={`border-top border-neutral-200 dark:border-neutral-800 py-10 text-center text-sm transition ${
+        transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
+        className={`border-t border-neutral-200 dark:border-neutral-800 py-8 sm:py-10 text-center text-sm ${
           darkMode ? 'bg-black text-gray-500' : 'bg-white text-neutral-600'
         }`}
       >
@@ -555,14 +632,14 @@ export default function App() {
       <motion.a
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ duration: 0.5, delay: 1 }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.4, delay: 0.8 }}
         href="https://wa.me/5491122546422?text=Hola! Quiero recibir más información sobre los servicios de Kaizen Consultora IT."
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 bg-green-500 hover:bg-green-400 text-white p-4 rounded-full shadow-lg z-50"
+        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 bg-green-500 hover:bg-green-400 text-white p-4 rounded-full shadow-lg z-50"
         aria-label="WhatsApp Kaizen"
       >
-        <MessageCircle size={28} />
+        <MessageCircle size={26} />
       </motion.a>
     </div>
   );
