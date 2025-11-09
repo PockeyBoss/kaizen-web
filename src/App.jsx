@@ -12,7 +12,7 @@ import {
   Cloud as CloudIcon,
 } from 'lucide-react';
 
-/* ------------------------------ Particles ------------------------------ */
+/* ------------------------------ Particles (ligero) ------------------------------ */
 function ParticlesCanvas({ darkMode }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
@@ -28,22 +28,20 @@ function ParticlesCanvas({ darkMode }) {
       '(prefers-reduced-motion: reduce)'
     ).matches;
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
-
     if (prefersReduce) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
 
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    let width = 0;
-    let height = 0;
-
+    let width = 0,
+      height = 0;
     const color = darkMode
       ? { r: 243, g: 108, b: 33 }
       : { r: 255, g: 102, b: 0 };
-    const linkOpacity = isMobile ? 0 : 0.28;
-    const maxDist = isMobile ? 0 : 150;
-    const repulseDist = isMobile ? 70 : 100;
+    const linkOpacity = isMobile ? 0 : 0.24;
+    const maxDist = isMobile ? 0 : 130;
+    const repulseDist = isMobile ? 60 : 90;
 
     const resize = () => {
       const { clientWidth, clientHeight } = canvas;
@@ -53,31 +51,17 @@ function ParticlesCanvas({ darkMode }) {
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const density = isMobile ? 52000 : 18000;
-      const count = Math.max(24, Math.floor((width * height) / density));
+      const density = isMobile ? 52000 : 20000;
+      const count = Math.max(18, Math.floor((width * height) / density));
       const arr = particlesRef.current;
-
-      if (arr.length === 0) {
-        for (let i = 0; i < count; i++) {
-          arr.push({
-            x: Math.random() * width,
-            y: Math.random() * height,
-            vx: (Math.random() - 0.5) * 0.6,
-            vy: (Math.random() - 0.5) * 0.6,
-          });
-        }
-      } else if (arr.length < count) {
-        for (let i = arr.length; i < count; i++) {
-          arr.push({
-            x: Math.random() * width,
-            y: Math.random() * height,
-            vx: (Math.random() - 0.5) * 0.6,
-            vy: (Math.random() - 0.5) * 0.6,
-          });
-        }
-      } else if (arr.length > count) {
-        arr.splice(count);
-      }
+      while (arr.length < count)
+        arr.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+        });
+      if (arr.length > count) arr.splice(count);
     };
 
     const onMouseMove = (e) => {
@@ -86,11 +70,9 @@ function ParticlesCanvas({ darkMode }) {
       mouse.current.y = e.clientY - rect.top;
       mouse.current.active = true;
     };
-
     const onMouseLeave = () => {
       mouse.current.active = false;
-      mouse.current.x = -9999;
-      mouse.current.y = -9999;
+      mouse.current.x = mouse.current.y = -9999;
     };
 
     let lastTs = 0;
@@ -107,14 +89,14 @@ function ParticlesCanvas({ darkMode }) {
       for (let i = 0; i < arr.length; i++) {
         const p = arr[i];
         if (mouse.current.active && !isMobile) {
-          const dx = p.x - mouse.current.x;
-          const dy = p.y - mouse.current.y;
-          const dist2 = dx * dx + dy * dy;
-          if (dist2 < repulseDist * repulseDist) {
-            const dist = Math.max(0.0001, Math.sqrt(dist2));
-            const force = (repulseDist - dist) / repulseDist;
-            p.vx += (dx / dist) * force * 0.6;
-            p.vy += (dy / dist) * force * 0.6;
+          const dx = p.x - mouse.current.x,
+            dy = p.y - mouse.current.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < repulseDist * repulseDist) {
+            const d = Math.max(0.0001, Math.sqrt(d2));
+            const f = (repulseDist - d) / repulseDist;
+            p.vx += (dx / d) * f * 0.5;
+            p.vy += (dy / d) * f * 0.5;
           }
         }
         p.x += p.vx;
@@ -125,8 +107,8 @@ function ParticlesCanvas({ darkMode }) {
         if (p.y <= 0 || p.y >= height) p.vy *= -1;
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},0.85)`;
+        ctx.arc(p.x, p.y, 1.9, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},0.8)`;
         ctx.fill();
       }
 
@@ -134,13 +116,13 @@ function ParticlesCanvas({ darkMode }) {
         ctx.lineWidth = 1;
         for (let i = 0; i < arr.length; i++) {
           for (let j = i + 1; j < arr.length; j++) {
-            const a = arr[i];
-            const b = arr[j];
-            const dx = a.x - b.x;
-            const dy = a.y - b.y;
-            const dist2 = dx * dx + dy * dy;
-            if (dist2 < maxDist * maxDist) {
-              const alpha = linkOpacity * (1 - Math.sqrt(dist2) / maxDist);
+            const a = arr[i],
+              b = arr[j];
+            const dx = a.x - b.x,
+              dy = a.y - b.y,
+              d2 = dx * dx + dy * dy;
+            if (d2 < maxDist * maxDist) {
+              const alpha = linkOpacity * (1 - Math.sqrt(d2) / maxDist);
               ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
               ctx.beginPath();
               ctx.moveTo(a.x, a.y);
@@ -150,7 +132,6 @@ function ParticlesCanvas({ darkMode }) {
           }
         }
       }
-
       rafRef.current = requestAnimationFrame(step);
     };
 
@@ -173,6 +154,154 @@ function ParticlesCanvas({ darkMode }) {
       ref={canvasRef}
       className="fixed inset-0 -z-10 will-change-transform"
     />
+  );
+}
+
+/* -------------------------- Hero Background (SVG) -------------------------- */
+function NetworkHero({ darkMode }) {
+  const prefersReducedMotion = useReducedMotion();
+
+  // Paletas día / noche
+  const stroke = darkMode ? '#ffa366' : '#ff7a26';
+  const nodeFill = darkMode ? '#ff7a26' : '#ff9a50';
+  const grid = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Grid sutil */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `linear-gradient(${grid} 1px, transparent 1px), linear-gradient(90deg, ${grid} 1px, transparent 1px)`,
+          backgroundSize: '60px 60px, 60px 60px',
+          filter: darkMode ? 'brightness(0.7)' : 'none',
+        }}
+      />
+      {/* Red animada */}
+      <svg
+        className="absolute inset-0 w-full h-full"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        role="img"
+        aria-label="Fondo de red tecnológica animado"
+      >
+        <defs>
+          <linearGradient id="wire" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.0" />
+            <stop offset="50%" stopColor={stroke} stopOpacity="0.8" />
+            <stop offset="100%" stopColor={stroke} stopOpacity="0.0" />
+          </linearGradient>
+          <linearGradient id="wire2" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.0" />
+            <stop offset="50%" stopColor={stroke} stopOpacity="0.8" />
+            <stop offset="100%" stopColor={stroke} stopOpacity="0.0" />
+          </linearGradient>
+          <radialGradient id="glow" r="60%">
+            <stop
+              offset="0%"
+              stopColor={darkMode ? '#ff7a26' : '#ff8a42'}
+              stopOpacity="0.25"
+            />
+            <stop offset="100%" stopColor="transparent" stopOpacity="0" />
+          </radialGradient>
+          <style>{`
+            .trace { stroke-dasharray: 8 14; }
+            ${
+              !prefersReducedMotion
+                ? `
+            @keyframes flowX { 0% { stroke-dashoffset: 0 } 100% { stroke-dashoffset: -220 } }
+            @keyframes flowY { 0% { stroke-dashoffset: 0 } 100% { stroke-dashoffset:  220 } }
+            @keyframes pulse  { 0%,100% { r: 3 } 50% { r: 4.8 } }
+            `
+                : ''
+            }
+          `}</style>
+        </defs>
+
+        {/* halos sutiles */}
+        <circle cx="240" cy="160" r="260" fill="url(#glow)" />
+        <circle cx="1240" cy="720" r="300" fill="url(#glow)" />
+
+        {/* Trazas horizontales */}
+        {[150, 260, 370, 480, 590, 700, 810].map((y, i) => (
+          <g key={`h-${y}`}>
+            <path
+              d={`M -200 ${y} C 200 ${y - 40}, 700 ${y + 40}, 1640 ${y}`}
+              stroke="url(#wire)"
+              strokeWidth="2"
+              className="trace"
+              fill="none"
+              style={
+                !prefersReducedMotion
+                  ? { animation: `flowX ${18 + i * 1.5}s linear infinite` }
+                  : {}
+              }
+              opacity={0.75}
+            />
+          </g>
+        ))}
+
+        {/* Trazas verticales */}
+        {[180, 360, 540, 720, 900, 1080, 1260].map((x, i) => (
+          <path
+            key={`v-${x}`}
+            d={`M ${x} -200 C ${x - 40} 200, ${x + 40} 700, ${x} 1640`}
+            stroke="url(#wire2)"
+            strokeWidth="2"
+            className="trace"
+            fill="none"
+            style={
+              !prefersReducedMotion
+                ? { animation: `flowY ${22 + i * 1.7}s linear infinite` }
+                : {}
+            }
+            opacity={0.65}
+          />
+        ))}
+
+        {/* Nodos */}
+        {[
+          [220, 200],
+          [420, 260],
+          [620, 180],
+          [820, 300],
+          [1040, 220],
+          [1240, 340],
+          [300, 520],
+          [520, 600],
+          [760, 520],
+          [980, 600],
+          [1200, 520],
+        ].map(([cx, cy], i) => (
+          <circle
+            key={`n-${i}`}
+            cx={cx}
+            cy={cy}
+            r="4"
+            fill={nodeFill}
+            style={
+              !prefersReducedMotion
+                ? {
+                    animation: 'pulse 2.6s ease-in-out infinite',
+                    animationDelay: `${i * 0.15}s`,
+                  }
+                : {}
+            }
+            opacity="0.9"
+          />
+        ))}
+      </svg>
+
+      {/* Degradé para legibilidad del texto */}
+      <div
+        className={`absolute inset-0 bg-gradient-to-b ${
+          darkMode
+            ? 'from-black/55 via-black/35 to-transparent'
+            : 'from-white/55 via-white/35 to-transparent'
+        }`}
+      />
+    </div>
   );
 }
 
@@ -221,29 +350,21 @@ const CLOUD_PLANS = [
   { name: 'KAIZEN 3', cpu: 8, ram: 32, ssd: 240, trafico: 30, code: 'CCX33' },
 ];
 
-/* ------------------------------- Main ------------------------------- */
+/* --------------------------------- App --------------------------------- */
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const toggleMode = () => setDarkMode((v) => !v);
 
-  // Imagen de hero (día / noche)
-  const heroImgDay =
-    'https://media.istockphoto.com/id/1566680995/es/foto/tecnolog%C3%ADa-futura-conexi%C3%B3n-de-red-de-datos-digitales-ciberseguridad-de-computaci%C3%B3n-en-la-nube.webp?a=1&b=1&s=612x612&w=0&k=20&c=40JpCptRYBflf3SZ6PRn9exkhFCE4ZNSlzF0XRLcw2U=';
-  // misma imagen con tratamiento oscuro para "noche"
-  const heroImgNight = heroImgDay;
-
   const theme = darkMode
     ? {
         bg: 'bg-neutral-950 text-gray-100',
         sectionBg: 'bg-neutral-950',
-        gradient: 'from-neutral-950/60 via-neutral-900/70 to-orange-950/30',
         text: 'text-white',
       }
     : {
         bg: 'bg-white text-neutral-900',
         sectionBg: 'bg-white',
-        gradient: 'from-white/50 via-gray-100/60 to-orange-50/50',
         text: 'text-neutral-900',
       };
 
@@ -251,7 +372,7 @@ export default function App() {
     <div
       className={`relative min-h-screen font-sans overflow-x-hidden transition-colors duration-700 ${theme.bg}`}
     >
-      {/* Fondo animado + partículas */}
+      {/* Partículas de fondo (ligeras) */}
       <ParticlesCanvas darkMode={darkMode} />
 
       {/* Header */}
@@ -290,31 +411,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* Hero con imagen + movimiento y tratamiento día/noche */}
+      {/* HERO con red animada */}
       <section
         className={`relative min-h-[82vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden ${theme.sectionBg}`}
       >
-        {/* Capa imagen animada */}
-        <motion.div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('${darkMode ? heroImgNight : heroImgDay}')`,
-            filter: darkMode
-              ? 'brightness(0.55) saturate(1.15) contrast(1.05)'
-              : 'brightness(0.9)',
-          }}
-          initial={{ scale: 1.06, y: 0 }}
-          animate={
-            prefersReducedMotion
-              ? {}
-              : { scale: [1.06, 1.12, 1.06], y: [0, -10, 0] }
-          }
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        {/* Degradé superior */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-b ${theme.gradient}`}
-        />
+        {/* Fondo animado */}
+        <NetworkHero darkMode={darkMode} />
+
         <div className="relative z-10 text-center px-4 sm:px-6">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
@@ -331,7 +434,7 @@ export default function App() {
               delay: 0.2,
               duration: prefersReducedMotion ? 0 : 0.8,
             }}
-            className="mt-5 sm:mt-6 text-base sm:text-lg max-w-2xl mx-auto text-gray-100/90 md:text-gray-200 dark:text-gray-300"
+            className="mt-5 sm:mt-6 text-base sm:text-lg max-w-2xl mx-auto text-gray-800 dark:text-gray-300"
           >
             Tecnología que potencia tu empresa. Implementamos, optimizamos,
             capacitamos y damos soporte a soluciones tecnológicas adaptadas a tu
@@ -351,7 +454,7 @@ export default function App() {
             </a>
             <a
               href="#contactanos"
-              className="border border-orange-600 text-orange-100 md:text-orange-600 hover:bg-orange-600 hover:text-white px-8 py-3 rounded-full font-medium transition w-full sm:w-auto"
+              className="border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white px-8 py-3 rounded-full font-medium transition w-full sm:w-auto"
             >
               Contacto
             </a>
@@ -535,13 +638,12 @@ export default function App() {
             gestión y mejorar tu eficiencia con nuestras soluciones.
           </p>
 
-          {/* IMPORTANTE: primera vez te enviará un correo de verificación de FormSubmit */}
+          {/* Primera vez, FormSubmit te enviará email de verificación al inbox */}
           <form
             action="https://formsubmit.co/info@kaizenit.com.ar"
             method="POST"
             className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10"
           >
-            {/* campos ocultos útiles */}
             <input
               type="hidden"
               name="_subject"
