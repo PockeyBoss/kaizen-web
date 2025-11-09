@@ -24,13 +24,11 @@ function ParticlesCanvas({ darkMode }) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Preferencias del usuario y tamaño de pantalla
     const prefersReduce = window.matchMedia(
       '(prefers-reduced-motion: reduce)'
     ).matches;
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-    // Si el usuario prefiere menos animación, no renderizamos partículas
     if (prefersReduce) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
@@ -43,8 +41,6 @@ function ParticlesCanvas({ darkMode }) {
     const color = darkMode
       ? { r: 243, g: 108, b: 33 }
       : { r: 255, g: 102, b: 0 };
-
-    // En mobile bajamos distancias/links para alivianar GPU
     const linkOpacity = isMobile ? 0 : 0.28;
     const maxDist = isMobile ? 0 : 150;
     const repulseDist = isMobile ? 70 : 100;
@@ -57,7 +53,6 @@ function ParticlesCanvas({ darkMode }) {
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Densidad menor en mobile
       const density = isMobile ? 52000 : 18000;
       const count = Math.max(24, Math.floor((width * height) / density));
       const arr = particlesRef.current;
@@ -100,7 +95,6 @@ function ParticlesCanvas({ darkMode }) {
 
     let lastTs = 0;
     const step = (ts) => {
-      // Throttle suave en mobile (≈35fps)
       if (isMobile && ts - lastTs < 28) {
         rafRef.current = requestAnimationFrame(step);
         return;
@@ -229,22 +223,27 @@ const CLOUD_PLANS = [
 
 /* ------------------------------- Main ------------------------------- */
 export default function App() {
-  // Claro por defecto
   const [darkMode, setDarkMode] = useState(false);
-  const toggleMode = () => setDarkMode((v) => !v);
   const prefersReducedMotion = useReducedMotion();
+  const toggleMode = () => setDarkMode((v) => !v);
+
+  // Imagen de hero (día / noche)
+  const heroImgDay =
+    'https://plus.unsplash.com/premium_photo-1669916850015-eda6093d41f4?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDYyfHxlbXByZXNhJTIwc2lzdGVtYXMlMjBjbG91ZCUyMGluZnJhZXN0cnVjdHVyYXxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&q=60&w=1600';
+  // misma imagen con tratamiento oscuro para "noche"
+  const heroImgNight = heroImgDay;
 
   const theme = darkMode
     ? {
         bg: 'bg-neutral-950 text-gray-100',
         sectionBg: 'bg-neutral-950',
-        gradient: 'from-neutral-950 via-neutral-900 to-orange-950/40',
+        gradient: 'from-neutral-950/60 via-neutral-900/70 to-orange-950/30',
         text: 'text-white',
       }
     : {
         bg: 'bg-white text-neutral-900',
         sectionBg: 'bg-white',
-        gradient: 'from-white via-gray-100 to-orange-50/50',
+        gradient: 'from-white/50 via-gray-100/60 to-orange-50/50',
         text: 'text-neutral-900',
       };
 
@@ -252,47 +251,11 @@ export default function App() {
     <div
       className={`relative min-h-screen font-sans overflow-x-hidden transition-colors duration-700 ${theme.bg}`}
     >
-      {/* Capa de partículas + blobs animados (blobs atenuados en mobile) */}
+      {/* Fondo animado + partículas */}
       <ParticlesCanvas darkMode={darkMode} />
-      <motion.div
-        className="pointer-events-none fixed inset-0 -z-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
-      >
-        <motion.div
-          className="absolute -top-24 -left-24 w-[26rem] sm:w-[36rem] h-[26rem] sm:h-[36rem] rounded-full blur-3xl"
-          style={{
-            background:
-              'radial-gradient(closest-side, rgba(255,130,50,0.28), transparent)',
-          }}
-          animate={
-            prefersReducedMotion
-              ? {}
-              : { x: [0, 20, -10, 0], y: [0, -10, 10, 0] }
-          }
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute -bottom-24 -right-24 w-[24rem] sm:w-[32rem] h-[24rem] sm:h-[32rem] rounded-full blur-3xl"
-          style={{
-            background:
-              'radial-gradient(closest-side, rgba(255,100,20,0.2), transparent)',
-          }}
-          animate={
-            prefersReducedMotion
-              ? {}
-              : { x: [0, -20, 10, 0], y: [0, 15, -10, 0] }
-          }
-          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </motion.div>
 
-      {/* Header (blur sólo en desktop) */}
-      <motion.header
-        initial={{ y: -80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
+      {/* Header */}
+      <header
         className={`sticky top-0 z-50 border-b border-neutral-300/30 shadow-md transition ${
           darkMode ? 'bg-neutral-950/90' : 'bg-white/90'
         } md:backdrop-blur`}
@@ -306,17 +269,15 @@ export default function App() {
             decoding="async"
           />
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-            {['Nosotros', 'Servicios', 'Cloud', 'Contactanos'].map(
-              (link, i) => (
-                <a
-                  key={link}
-                  href={`#${link.toLowerCase()}`}
-                  className="hover:text-orange-500 transition"
-                >
-                  {link}
-                </a>
-              )
-            )}
+            {['Nosotros', 'Servicios', 'Cloud', 'Contactanos'].map((link) => (
+              <a
+                key={link}
+                href={`#${link.toLowerCase()}`}
+                className="hover:text-orange-500 transition"
+              >
+                {link}
+              </a>
+            ))}
           </nav>
           <button
             onClick={toggleMode}
@@ -327,22 +288,32 @@ export default function App() {
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </div>
-      </motion.header>
+      </header>
 
-      {/* Hero */}
+      {/* Hero con imagen + movimiento y tratamiento día/noche */}
       <section
         className={`relative min-h-[82vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden ${theme.sectionBg}`}
       >
-        <div
+        {/* Capa imagen animada */}
+        <motion.div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage:
-              "url('https://media.istockphoto.com/id/2179714888/es/foto/manos-digitales-en-arte-conceptual-de-conexi%C3%B3n-de-red-futurista.webp?a=1&b=1&s=612x612&w=0&k=20&c=3Hsn29V4D7mX2da3JGmxsMZmQVe52HJ10q3ehn4pUA4=')",
+            backgroundImage: `url('${darkMode ? heroImgNight : heroImgDay}')`,
+            filter: darkMode
+              ? 'brightness(0.55) saturate(1.15) contrast(1.05)'
+              : 'brightness(0.9)',
           }}
+          initial={{ scale: 1.06, y: 0 }}
+          animate={
+            prefersReducedMotion
+              ? {}
+              : { scale: [1.06, 1.12, 1.06], y: [0, -10, 0] }
+          }
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
         />
+        {/* Degradé superior */}
         <div
           className={`absolute inset-0 bg-gradient-to-b ${theme.gradient}`}
-          style={{ opacity: 0.85 }}
         />
         <div className="relative z-10 text-center px-4 sm:px-6">
           <motion.h1
@@ -360,7 +331,7 @@ export default function App() {
               delay: 0.2,
               duration: prefersReducedMotion ? 0 : 0.8,
             }}
-            className="mt-5 sm:mt-6 text-base sm:text-lg max-w-2xl mx-auto text-gray-700 dark:text-gray-300"
+            className="mt-5 sm:mt-6 text-base sm:text-lg max-w-2xl mx-auto text-gray-100/90 md:text-gray-200 dark:text-gray-300"
           >
             Tecnología que potencia tu empresa. Implementamos, optimizamos,
             capacitamos y damos soporte a soluciones tecnológicas adaptadas a tu
@@ -380,19 +351,12 @@ export default function App() {
             </a>
             <a
               href="#contactanos"
-              className="border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white px-8 py-3 rounded-full font-medium transition w-full sm:w-auto"
+              className="border border-orange-600 text-orange-100 md:text-orange-600 hover:bg-orange-600 hover:text-white px-8 py-3 rounded-full font-medium transition w-full sm:w-auto"
             >
               Contacto
             </a>
           </motion.div>
         </div>
-        <img
-          src=""
-          alt=""
-          className="absolute bottom-6 right-6 w-28 sm:w-40 opacity-40 pointer-events-none"
-          loading="lazy"
-          decoding="async"
-        />
       </section>
 
       {/* Nosotros */}
@@ -554,7 +518,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* Contacto */}
+      {/* Contacto (FormSubmit → info@kaizenit.com.ar) */}
       <section id="contactanos" className="relative py-20 sm:py-24 text-center">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -570,37 +534,66 @@ export default function App() {
             Llevá tu empresa al siguiente nivel. Descubrí cómo optimizar tu
             gestión y mejorar tu eficiencia con nuestras soluciones.
           </p>
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10">
+
+          {/* IMPORTANTE: primera vez te enviará un correo de verificación de FormSubmit */}
+          <form
+            action="https://formsubmit.co/info@kaizenit.com.ar"
+            method="POST"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10"
+          >
+            {/* campos ocultos útiles */}
+            <input
+              type="hidden"
+              name="_subject"
+              value="Nuevo contacto desde kaizenit.com.ar"
+            />
+            <input type="hidden" name="_captcha" value="false" />
+            <input type="hidden" name="_template" value="box" />
+            <input
+              type="hidden"
+              name="_next"
+              value="https://kaizenit.com.ar#contactanos"
+            />
+
             <input
               type="text"
+              name="nombre"
               placeholder="Nombre"
               autoComplete="name"
+              required
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <input
               type="email"
+              name="email"
               placeholder="Email"
               autoComplete="email"
+              required
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <input
               type="text"
+              name="empresa"
               placeholder="Empresa"
               autoComplete="organization"
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <input
               type="tel"
+              name="telefono"
               placeholder="Teléfono"
               inputMode="tel"
               autoComplete="tel"
               className="p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <textarea
+              name="mensaje"
               placeholder="Mensaje"
               rows={4}
+              required
               className="md:col-span-2 p-4 rounded-lg border border-gray-300 dark:border-gray-500/30 bg-transparent focus:outline-none focus:ring-2 focus:ring-orange-500"
             ></textarea>
+
             <motion.button
               whileHover={{ scale: prefersReducedMotion ? 1 : 1.02 }}
               whileTap={{ scale: prefersReducedMotion ? 1 : 0.98 }}
@@ -614,10 +607,7 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <motion.footer
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
+      <footer
         className={`border-t border-neutral-200 dark:border-neutral-800 py-8 sm:py-10 text-center text-sm ${
           darkMode ? 'bg-black text-gray-500' : 'bg-white text-neutral-600'
         }`}
@@ -626,7 +616,7 @@ export default function App() {
           © {new Date().getFullYear()} Kaizen Consultora IT. Todos los derechos
           reservados.
         </p>
-      </motion.footer>
+      </footer>
 
       {/* WhatsApp FAB */}
       <motion.a
