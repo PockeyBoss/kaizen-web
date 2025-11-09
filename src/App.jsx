@@ -337,7 +337,7 @@ export default function App() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "url('https://plus.unsplash.com/premium_photo-1681399975135-252eab5fd2db?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=774')",
+              "url('https://media.istockphoto.com/id/2179714888/es/foto/manos-digitales-en-arte-conceptual-de-conexi%C3%B3n-de-red-futurista.webp?a=1&b=1&s=612x612&w=0&k=20&c=3Hsn29V4D7mX2da3JGmxsMZmQVe52HJ10q3ehn4pUA4=')",
           }}
         />
         <div
