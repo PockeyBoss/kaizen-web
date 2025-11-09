@@ -337,7 +337,7 @@ export default function App() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "url('https://images.unsplash.com/photo-1590608897129-79da98d159d8?q=80&w=2000&auto=format&fit=crop')",
+              "url('https://plus.unsplash.com/premium_photo-1681399975135-252eab5fd2db?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=774')",
           }}
         />
         <div
@@ -387,8 +387,8 @@ export default function App() {
           </motion.div>
         </div>
         <img
-          src="https://www.axoft.com/img/logos/gestion.svg"
-          alt="Tango Gestión"
+          src=""
+          alt=""
           className="absolute bottom-6 right-6 w-28 sm:w-40 opacity-40 pointer-events-none"
           loading="lazy"
           decoding="async"
