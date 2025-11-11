@@ -345,9 +345,9 @@ const SERVICES = [
 ];
 
 const CLOUD_PLANS = [
-  { name: 'KAIZEN 1', cpu: 2, ram: 8, ssd: 80, trafico: 20, code: 'CCX13' },
-  { name: 'KAIZEN 2', cpu: 4, ram: 16, ssd: 160, trafico: 20, code: 'CCX23' },
-  { name: 'KAIZEN 3', cpu: 8, ram: 32, ssd: 240, trafico: 30, code: 'CCX33' },
+  { name: 'BASICO', cpu: 2, ram: 8, ssd: 80, trafico: 20, code: 'CCX13' },
+  { name: 'MEDIO', cpu: 4, ram: 16, ssd: 160, trafico: 20, code: 'CCX23' },
+  { name: 'AVANZADO', cpu: 8, ram: 32, ssd: 240, trafico: 30, code: 'CCX33' },
 ];
 
 /* --------------------------------- App --------------------------------- */
